@@ -1,4 +1,23 @@
 #!/bin/bash
+#
+# Relies on following configuration for rclone:
+#
+# $> cat ~/.config/rclone/rclone.conf 
+# [DANDI-WEBDAV]
+# type = webdav
+# url = https://dandi.centerforopenneuroscience.org
+# vendor = other
+# 
+# [DANDI-WEBDAV-LOCAL]
+# type = webdav
+# url = http://localhost:8080
+# vendor = other
+# 
+# [DANDI-S3]
+# type = s3
+# provider = AWS
+# region = us-east-2
+
 
 set -eu
 
