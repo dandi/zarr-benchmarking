@@ -40,7 +40,8 @@ rm -rf "${OUT:?}"/* || :
 # simple download directly from S3
 get_aws_s3() {
 	# TODO: check how to make it "auto scale" or to force to stick to defaults
-	aws configure set default.s3.max_concurrent_requests "$CONCUR"
+	# for now just set to high 255 alike s5cmd does
+	aws configure set default.s3.max_concurrent_requests "${CONCUR:-255}"
 	/usr/bin/time chronic aws s3 --no-sign-request sync s3://dandiarchive/zarr/$zarr/"$PART" "$1"
 }
 
