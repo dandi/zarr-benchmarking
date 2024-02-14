@@ -20,45 +20,66 @@ version=0395d0a3767524377b58da3945b3c063-48379--27115470
 zarr=0d5b9be5-e626-4f6a-96da-b6b602954899
 path=sub-U01hm15x/ses-20220731h17m24s47/micr/sub-U01hm15x_ses-20220731h17m24s47_sample-mEhmAD031x15R2_ABETA_stain-ABETA_run-1_chunk-1_SPIM.ome.zarr
 
-part=${PART:-0/0/0/0/0/}
-: ${CONCUR:=20}
+# "Options" to be passed via env vars
+: "${PART:=0/0/0/0/0/}"
+if [ -z "${METHODS:-}" ]; then
+	METHODS="get_aws_s3 get_s5cmd_s3 get_rclone_s3 get_rclone_dandisets get_rclone_zarr_manifest"
+	# METHODS="get_s5cmd_s3 get_rclone_zarr_manifest"
+fi
+# autoscale (if does) by default
+: "${CONCUR:=}"
+
+# Custom format for /usr/bin/time
+export TIME="TIME: %E real\t%U user\t%S sys\t%P CPU"
 
 OUT="/tmp/zarr-bm"
-rm -rf "$OUT"/* || :
+rm -rf "${OUT:?}"/* || :
 
 
 #set -x
 # simple download directly from S3
 get_aws_s3() {
-	aws configure set default.s3.max_concurrent_requests $CONCUR
-	/usr/bin/time chronic aws s3 --no-sign-request sync s3://dandiarchive/zarr/$zarr/$part "$1"
+	# TODO: check how to make it "auto scale" or to force to stick to defaults
+	aws configure set default.s3.max_concurrent_requests "$CONCUR"
+	/usr/bin/time chronic aws s3 --no-sign-request sync s3://dandiarchive/zarr/$zarr/"$PART" "$1"
+}
+
+my_rclone() {
+	/usr/bin/time rclone copy ${CONCUR:+--transfers $CONCUR} "$1" "$2"
 }
 
 get_rclone_s3() {
-	aws configure set default.s3.max_concurrent_requests $CONCUR
-	/usr/bin/time rclone sync --transfers $CONCUR DANDI-S3:dandiarchive/zarr/$zarr/$part "$1"
+	my_rclone DANDI-S3:dandiarchive/zarr/$zarr/"$PART" "$1"
 }
 
 get_rclone_dandisets() {
-	/usr/bin/time rclone sync --transfers $CONCUR DANDI-WEBDAV:dandisets/$ds/draft/$path/$part "$1"
+	my_rclone DANDI-WEBDAV:dandisets/$ds/draft/$path/"$PART" "$1"
 }
 
 get_rclone_zarr_manifest() {
-	/usr/bin/time rclone sync --transfers $CONCUR DANDI-WEBDAV:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version/$part "$1"
+	my_rclone DANDI-WEBDAV:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version/"$PART" "$1"
 }
 
-echo "Downloading part $part within zarr $zarr asking for up to $CONCUR processes"
-#for method in get_aws_s3 get_rclone_s3 get_rclone_dandisets get_rclone_zarr_manifest; do
-for method in get_rclone_zarr_manifest; do
+get_s5cmd_s3() {
+	# note: if we do not set --numworkers -- it would be 255
+	# https://github.com/peak/s5cmd?tab=readme-ov-file#configuring-concurrency on howto control
+	/usr/bin/time s5cmd --log error --no-sign-request ${CONCUR:+--numworkers $CONCUR} cp --source-region us-east-2 s3://dandiarchive/zarr/$zarr/"${PART}"* "$1/"
+}
+
+echo -n "Downloading part $PART within zarr $zarr "
+[ -n "${CONCUR}" ] && echo "asking for up to $CONCUR processes" || echo "without specifying explicit number of processes"
+echo "$METHODS" | tr " " "\n" | while read -r method; do
 	out="$OUT/$method"
 	echo "---------------"
 	echo "$method:  $out"
+	#set -x
 	$method "$out"
+	#set +x
 	checksum=$(TQDM_DISABLE=1 zarrsum local "$out" | tail -n 1)
-	if [ -z "$part" ] && [ $checksum != "$version" ]; then
+	if [ -z "$PART" ] && [ "$checksum" != "$version" ]; then
 		echo "wrong checksum $checksum != $version"
 	fi
-	if [ -n "$part" ]; then
+	if [ -n "$PART" ]; then
 		echo "checksum $checksum"
 	fi
 done
