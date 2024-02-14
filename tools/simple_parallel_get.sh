@@ -21,6 +21,7 @@ zarr=0d5b9be5-e626-4f6a-96da-b6b602954899
 path=sub-U01hm15x/ses-20220731h17m24s47/micr/sub-U01hm15x_ses-20220731h17m24s47_sample-mEhmAD031x15R2_ABETA_stain-ABETA_run-1_chunk-1_SPIM.ome.zarr
 
 # "Options" to be passed via env vars
+: "${RCLONE_DANDI_WEBDAV:=DANDI-WEBDAV}"
 : "${PART:=0/0/0/0/0/}"
 if [ -z "${METHODS:-}" ]; then
 	METHODS="get_aws_s3 get_s5cmd_s3 get_rclone_s3 get_rclone_dandisets get_rclone_zarr_manifest"
@@ -54,11 +55,11 @@ get_rclone_s3() {
 }
 
 get_rclone_dandisets() {
-	my_rclone DANDI-WEBDAV:dandisets/$ds/draft/$path/"$PART" "$1"
+	my_rclone ${RCLONE_DANDI_WEBDAV}:dandisets/$ds/draft/$path/"$PART" "$1"
 }
 
 get_rclone_zarr_manifest() {
-	my_rclone DANDI-WEBDAV:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version/"$PART" "$1"
+	my_rclone ${RCLONE_DANDI_WEBDAV}:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version/"$PART" "$1"
 }
 
 get_s5cmd_s3() {
