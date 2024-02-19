@@ -78,7 +78,7 @@ get_rclone_dandisets() {
 }
 
 get_rclone_zarr_manifest() {
-	my_rclone ${RCLONE_DANDI_WEBDAV}:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version/"$PART" "$1"
+	my_rclone ${RCLONE_DANDI_WEBDAV}:zarrs/${zarr:0:3}/${zarr:3:3}/${zarr}/$version.zarr/"$PART" "$1"
 }
 
 get_s5cmd_s3() {
